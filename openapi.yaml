@@ -53,7 +53,7 @@ components:
         learnerId:  { type: string }
         answers:    { type: object }
         startedAt:  { type: string, format: date-time }
-        completedAt:{ type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
 
     ModuleAttemptResult:
       type: object
