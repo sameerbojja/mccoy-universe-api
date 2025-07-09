@@ -1,0 +1,348 @@
+openapi: 3.0.0
+info:
+  title: McCoy Learning API
+  version: 0.1.0
+  description: >
+    Public interface for content delivery, module attempts, licensing,
+    recommendations, analytics, learner progress, and badge retrieval.
+    Hierarchy: Course → Module → Item.
+
+servers:
+  - url: https://api.mccoy.com/v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ────────────────  DATA SCHEMAS  ──────────────────────────
+  schemas:
+    Course:
+      type: object
+      properties:
+        id:          { type: string }
+        title:       { type: string }
+        description: { type: string }
+        tags:        { type: array, items: { type: string } }
+
+    Module:
+      type: object
+      properties:
+        id:          { type: string }
+        courseId:    { type: string }
+        title:       { type: string }
+        description: { type: string }
+        order:       { type: integer, description: Position inside course }
+
+    Item:
+      type: object
+      properties:
+        id:              { type: string }
+        moduleId:        { type: string }
+        title:           { type: string }
+        type:            { type: string, enum: [video, article, quiz, simulation, download] }
+        durationSeconds: { type: integer }
+
+    ModuleAttemptSubmission:
+      type: object
+      required: [moduleId, learnerId, answers, startedAt, completedAt]
+      properties:
+        moduleId:   { type: string }
+        learnerId:  { type: string }
+        answers:    { type: object }
+        startedAt:  { type: string, format: date-time }
+        completedAt:{ type: string, format: date-time }
+
+    ModuleAttemptResult:
+      type: object
+      properties:
+        attemptId: { type: string }
+        moduleId:  { type: string }
+        score:     { type: number, format: float }
+        maxScore:  { type: number, format: float }
+        pass:      { type: boolean }
+        feedback:  { type: array, items: { type: string } }
+
+    RecommendationList:
+      type: object
+      properties:
+        learnerId:   { type: string }
+        generatedAt: { type: string, format: date-time }
+        courseIds:   { type: array, items: { type: string } }
+
+    ProgressEntry:
+      type: object
+      properties:
+        itemId:    { type: string }
+        status:    { type: string, enum: [not_started, in_progress, completed] }
+        updatedAt: { type: string, format: date-time }
+
+    Badge:
+      type: object
+      properties:
+        id:       { type: string }
+        name:     { type: string }
+        issuedAt: { type: string, format: date-time }
+        courseId: { type: string }
+
+    LicenseStatus:
+      type: object
+      properties:
+        learnerId: { type: string }
+        courseId:  { type: string }
+        valid:     { type: boolean }
+        expiresAt: { type: string, format: date-time }
+
+    ReportSummary:
+      type: object
+      properties:
+        generatedAt: { type: string, format: date-time }
+        learners:    { type: integer }
+        completions: { type: integer }
+        avgScore:    { type: number, format: float }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+
+security:
+  - bearerAuth: []
+
+# ────────────────  ROUTES  ──────────────────────────
+paths:
+
+  # COURSES
+  /courses:
+    get:
+      summary: List all courses visible to the caller
+      responses:
+        '200':
+          description: Array of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Course' }
+
+  /courses/{courseId}:
+    get:
+      summary: Retrieve a single course record
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Course
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Course' }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /courses/{courseId}/modules:
+    get:
+      summary: List modules within a course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Array of modules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Module' }
+
+  # MODULES
+  /modules/{moduleId}:
+    get:
+      summary: Retrieve a single module
+      parameters:
+        - in: path
+          name: moduleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Module
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Module' }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /modules/{moduleId}/items:
+    get:
+      summary: List items under a module
+      parameters:
+        - in: path
+          name: moduleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Array of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Item' }
+
+  # ITEMS
+  /items/{itemId}:
+    get:
+      summary: Retrieve item metadata and delivery details
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: format
+          schema: { type: string }
+          description: Optional rendition format (html, pdf, streaming)
+      responses:
+        '200':
+          description: Item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+
+  # MODULE ATTEMPTS (scoring)
+  /modules/{moduleId}/attempts:
+    post:
+      summary: Submit a completed module attempt
+      parameters:
+        - in: path
+          name: moduleId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModuleAttemptSubmission' }
+      responses:
+        '202': { description: Accepted – scoring in progress }
+        '400': { description: Invalid payload, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /moduleAttempts/{attemptId}:
+    get:
+      summary: Retrieve scoring outcome for a module attempt
+      parameters:
+        - in: path
+          name: attemptId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Attempt result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModuleAttemptResult' }
+        '404': { description: Unknown attempt, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  # PROGRESS / BADGES
+  /learners/{learnerId}/progress:
+    get:
+      summary: Item- and module-level progress for a learner
+      parameters:
+        - in: path
+          name: learnerId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Progress array
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProgressEntry' }
+
+  /learners/{learnerId}/badges:
+    get:
+      summary: Completion badges earned by a learner
+      parameters:
+        - in: path
+          name: learnerId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Badge array
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Badge' }
+
+  # RECOMMENDATIONS
+  /learners/{learnerId}/recommendations:
+    get:
+      summary: Personalised course recommendations
+      parameters:
+        - in: path
+          name: learnerId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Recommendation list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecommendationList' }
+
+  # LICENSING
+  /license/validate:
+    post:
+      summary: Validate whether a learner may access a course
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [learnerId, courseId]
+              properties:
+                learnerId: { type: string }
+                courseId:  { type: string }
+      responses:
+        '200':
+          description: License status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenseStatus' }
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # USAGE REPORTS
+  /reports/usage:
+    get:
+      summary: Aggregate usage snapshot for ETL/BI
+      parameters:
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+          description: ISO-8601 timestamp for incremental pulls
+      responses:
+        '200':
+          description: Usage metrics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportSummary' }
