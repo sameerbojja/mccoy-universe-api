@@ -2,12 +2,9 @@ openapi: 3.0.3
 info:
   title: McCoy Quantum Content API
   version: 1.0.0
-  description: |
-    Read-only API (v1) for accessing courses, topics, items, and item variants.
-    Authentication uses API keys in the Authorization header with the scheme 'ApiKey'.
+  description: Read-only API for accessing courses, topics, items, and item variants
 servers:
   - url: https://quantum-api.mccoy.org/
-    description: Production
 security:
   - ApiKeyAuth: []
 
@@ -17,239 +14,109 @@ components:
       type: apiKey
       in: header
       name: Authorization
-      description: |
-        Provide your API key using the ApiKey scheme.
-        Example: `Authorization: ApiKey ak-xxxxxxxx_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy`
+      description: ApiKey ak-xxxxxxxx_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
   parameters:
     Page:
       name: page
       in: query
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-      description: Page number (1-based)
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: page_size
       in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 50
-      description: Page size (max 100)
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
     SortBy:
       name: sort_by
       in: query
-      schema:
-        type: string
-      description: |
-        Field to sort by. Valid values:
-        - Courses: name, created_at
-        - Topics: l1_name, l2_name, item_count, created_at, updated_at
-        - Items: fact, created_at, updated_at
+      schema: { type: string }
+      description: Courses: name | Topics: l1_name, l2_name, item_count | Items: fact
     SortOrder:
       name: sort_order
       in: query
-      schema:
-        type: string
-        enum: [asc, desc]
-        default: asc
-      description: Sort direction
+      schema: { type: string, enum: [asc, desc], default: asc }
+    UUID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
-    SuccessMeta:
+    Meta:
       type: object
       properties:
-        timestamp:
-          type: string
-          format: date-time
-        request_id:
-          type: string
-        version:
-          type: string
+        timestamp: { type: string, format: date-time }
+        request_id: { type: string }
+        version: { type: string }
     Error:
       type: object
       properties:
-        success:
-          type: boolean
-          example: false
+        success: { type: boolean, example: false }
         error:
           type: object
           properties:
-            code:
-              type: string
-              enum:
-                - INVALID_API_KEY
-                - INSUFFICIENT_PERMISSIONS
-                - RATE_LIMIT_EXCEEDED
-                - INVALID_PARAMETERS
-                - RESOURCE_NOT_FOUND
-                - COURSE_ACCESS_DENIED
-                - INTERNAL_ERROR
-              example: INVALID_API_KEY
-            message:
-              type: string
-              example: The provided API key is invalid or expired
-            details:
-              type: object
-              description: Additional error context (field names, provided values, etc.)
+            code: { type: string, example: INVALID_API_KEY }
+            message: { type: string }
+            details: { type: object }
           required: [code, message]
-        meta:
-          $ref: '#/components/schemas/SuccessMeta'
+        meta: { $ref: '#/components/schemas/Meta' }
       required: [success, error, meta]
     Pagination:
       type: object
       properties:
-        page:
-          type: integer
-        page_size:
-          type: integer
-        total_items:
-          type: integer
-        total_pages:
-          type: integer
-        has_next:
-          type: boolean
-        has_prev:
-          type: boolean
+        page: { type: integer }
+        page_size: { type: integer }
+        total_items: { type: integer }
+        total_pages: { type: integer }
+        has_next: { type: boolean }
+        has_prev: { type: boolean }
     Course:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        course_name:
-          type: string
-        description:
-          type: string
-      required: [id, course_name]
+        id: { type: string, format: uuid }
+        course_name: { type: string }
+        description: { type: string }
+      required: [id, course_name, description]
     Topic:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        l1_name:
-          type: string
-        l2_name:
-          type: string
-        courseid:
-          type: string
-          format: uuid
-        item_count:
-          type: integer
-      required: [id, l2_name, l1_name, courseid]
+        id: { type: string, format: uuid }
+        l1_name: { type: string }
+        l2_name: { type: string }
+        item_count: { type: integer }
+      required: [id, l1_name, l2_name, item_count]
     Item:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        topic_id:
-          type: string
-          format: uuid
-        fact:
-          type: string
-        supporting_content:
-          type: string
-        study_bullets:
-          type: string
-      required: [id, topic_id, fact]
+        id: { type: string, format: uuid }
+        fact: { type: string }
+        supporting_content: { type: string }
+        study_bullets: { type: string }
+      required: [id, fact, supporting_content, study_bullets]
     ItemVariant:
       type: object
       properties:
-        variant_type:
-          type: string
-          description: Question format (e.g., Short Answer, Multiple Choice)
-        content:
-          type: object
-          description: Variant content payload (JSON)
-    ListResponseCourses:
+        id: { type: string, format: uuid }
+        variant_type: { type: string }
+        content: { type: object }
+      required: [id, variant_type, content]
+    ListResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Course'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
-        meta:
-          $ref: '#/components/schemas/SuccessMeta'
+        success: { type: boolean, example: true }
+        data: { type: array }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+        meta: { $ref: '#/components/schemas/Meta' }
       required: [success, data, meta]
-    ListResponseTopics:
-      allOf:
-        - $ref: '#/components/schemas/ListResponseCourses'
-        - type: object
-          properties:
-            data:
-              type: array
-              items:
-                $ref: '#/components/schemas/Topic'
-    ListResponseItems:
-      allOf:
-        - $ref: '#/components/schemas/ListResponseCourses'
-        - type: object
-          properties:
-            data:
-              type: array
-              items:
-                $ref: '#/components/schemas/Item'
-    ObjectResponseCourse:
+    ObjectResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          $ref: '#/components/schemas/Course'
-        meta:
-          $ref: '#/components/schemas/SuccessMeta'
-      required: [success, data, meta]
-    ObjectResponseTopic:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          $ref: '#/components/schemas/Topic'
-        meta:
-          $ref: '#/components/schemas/SuccessMeta'
-      required: [success, data, meta]
-    ObjectResponseItem:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          $ref: '#/components/schemas/Item'
-        meta:
-          $ref: '#/components/schemas/SuccessMeta'
-      required: [success, data, meta]
-    ObjectResponseItemVariants:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ItemVariant'
-        meta:
-          $ref: '#/components/schemas/SuccessMeta'
+        success: { type: boolean, example: true }
+        data: { type: object }
+        meta: { $ref: '#/components/schemas/Meta' }
       required: [success, data, meta]
 
 paths:
   /api/v1/courses:
     get:
-      summary: List accessible courses
-      description: Returns courses accessible to the API key's organization.
-      tags: [Courses]
+      summary: List courses
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -257,153 +124,147 @@ paths:
         - $ref: '#/components/parameters/SortOrder'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListResponseCourses'
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '400': { description: Bad Request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '429': { description: Too Many Requests, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Course' }
+        '400': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/courses/{id}:
     get:
-      summary: Get course details
-      tags: [Courses]
+      summary: Get course
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/UUID'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ObjectResponseCourse'
-        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ObjectResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Course' }
+        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/courses/{id}/topics:
     get:
-      summary: List topics in a course
-      tags: [Topics]
+      summary: List topics
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/UUID'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
         - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/SortOrder'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListResponseTopics'
-        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Topic' }
+        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/topics/{id}:
     get:
-      summary: Get topic details
-      tags: [Topics]
+      summary: Get topic
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/UUID'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ObjectResponseTopic'
-        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ObjectResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Topic' }
+        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/topics/{id}/items:
     get:
-      summary: List items in a topic
-      tags: [Items]
+      summary: List items
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/UUID'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
         - $ref: '#/components/parameters/SortBy'
         - $ref: '#/components/parameters/SortOrder'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListResponseItems'
-        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ListResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Item' }
+        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/items/{id}:
     get:
-      summary: Get item details
-      tags: [Items]
+      summary: Get item
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/UUID'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ObjectResponseItem'
-        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ObjectResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Item' }
+        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/items/{id}/variants:
     get:
-      summary: Get item variants (all formats)
-      tags: [Items]
+      summary: Get item variants
+      description: Returns variants for an item. Auto-generates if missing.
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: '#/components/parameters/UUID'
       responses:
         '200':
-          description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ObjectResponseItemVariants'
-        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+                allOf:
+                  - $ref: '#/components/schemas/ObjectResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ItemVariant' }
+        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
