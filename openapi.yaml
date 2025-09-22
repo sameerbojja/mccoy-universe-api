@@ -1,348 +1,408 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: McCoy Learning API
-  version: 0.1.0
-  description: >
-    Public interface for content delivery, module attempts, licensing,
-    recommendations, analytics, learner progress, and badge retrieval.
-    Hierarchy: Course → Module → Item.
-
+  title: McCoy Quantum Content API
+  version: 1.0.0
+  description: |
+    Read-only API (v1) for accessing courses, topics, items, and item variants.
+    Authentication uses API keys in the Authorization header with the scheme 'ApiKey'.
 servers:
-  - url: https://api.mccoy.com/v1
+  - url: https://quantum-api.mccoy.org/
+security:
+  - ApiKeyAuth: []
 
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  # ────────────────  DATA SCHEMAS  ──────────────────────────
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Provide your API key using the ApiKey scheme.
+        Example: `Authorization: ApiKey ak-xxxxxxxx_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy`
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based)
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: Page size (max 100)
+    SortBy:
+      name: sort_by
+      in: query
+      schema:
+        type: string
+      description: |
+        Field to sort by. Valid values:
+        - Courses: name, created_at, l1, l2, l3
+        - Topics: l1_name, l2_name, item_count, created_at, updated_at
+        - Items: fact, created_at, updated_at
+    SortOrder:
+      name: sort_order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+      description: Sort direction
   schemas:
+    SuccessMeta:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        request_id:
+          type: string
+        version:
+          type: string
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_API_KEY
+                - INSUFFICIENT_PERMISSIONS
+                - RATE_LIMIT_EXCEEDED
+                - INVALID_PARAMETERS
+                - RESOURCE_NOT_FOUND
+                - COURSE_ACCESS_DENIED
+                - INTERNAL_ERROR
+              example: INVALID_API_KEY
+            message:
+              type: string
+              example: The provided API key is invalid or expired
+            details:
+              type: object
+              description: Additional error context (field names, provided values, etc.)
+          required: [code, message]
+        meta:
+          $ref: '#/components/schemas/SuccessMeta'
+      required: [success, error, meta]
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
     Course:
       type: object
       properties:
-        id:          { type: string }
-        title:       { type: string }
-        description: { type: string }
-        tags:        { type: array, items: { type: string } }
-
-    Module:
+        id:
+          type: string
+          format: uuid
+        course_name:
+          type: string
+        description:
+          type: string
+      required: [id, course_name]
+    Topic:
       type: object
       properties:
-        id:          { type: string }
-        courseId:    { type: string }
-        title:       { type: string }
-        description: { type: string }
-        order:       { type: integer, description: Position inside course }
-
+        id:
+          type: string
+          format: uuid
+        l1_name:
+          type: string
+        l2_name:
+          type: string
+        courseid:
+          type: string
+          format: uuid
+        item_count:
+          type: integer
+      required: [id, l2_name, l1_name, courseid]
     Item:
       type: object
       properties:
-        id:              { type: string }
-        moduleId:        { type: string }
-        title:           { type: string }
-        type:            { type: string, enum: [video, article, quiz, simulation, download] }
-        durationSeconds: { type: integer }
-
-    ModuleAttemptSubmission:
-      type: object
-      required: [moduleId, learnerId, answers, startedAt, completedAt]
-      properties:
-        moduleId:   { type: string }
-        learnerId:  { type: string }
-        answers:    { type: object }
-        startedAt:  { type: string, format: date-time }
-        completedAt: { type: string, format: date-time }
-
-    ModuleAttemptResult:
+        id:
+          type: string
+          format: uuid
+        topic_id:
+          type: string
+          format: uuid
+        fact:
+          type: string
+        supporting_content:
+          type: string
+        study_bullets:
+          type: string
+      required: [id, topic_id, fact]
+    ItemVariant:
       type: object
       properties:
-        attemptId: { type: string }
-        moduleId:  { type: string }
-        score:     { type: number, format: float }
-        maxScore:  { type: number, format: float }
-        pass:      { type: boolean }
-        feedback:  { type: array, items: { type: string } }
-
-    RecommendationList:
+        variant_type:
+          type: string
+          description: Question format (e.g., Short Answer, Multiple Choice)
+        content:
+          type: object
+          description: Variant content payload (JSON)
+    ListResponseCourses:
       type: object
       properties:
-        learnerId:   { type: string }
-        generatedAt: { type: string, format: date-time }
-        courseIds:   { type: array, items: { type: string } }
-
-    ProgressEntry:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Course'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        meta:
+          $ref: '#/components/schemas/SuccessMeta'
+      required: [success, data, meta]
+    ListResponseTopics:
+      allOf:
+        - $ref: '#/components/schemas/ListResponseCourses'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Topic'
+    ListResponseItems:
+      allOf:
+        - $ref: '#/components/schemas/ListResponseCourses'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Item'
+    ObjectResponseCourse:
       type: object
       properties:
-        itemId:    { type: string }
-        status:    { type: string, enum: [not_started, in_progress, completed] }
-        updatedAt: { type: string, format: date-time }
-
-    Badge:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Course'
+        meta:
+          $ref: '#/components/schemas/SuccessMeta'
+      required: [success, data, meta]
+    ObjectResponseTopic:
       type: object
       properties:
-        id:       { type: string }
-        name:     { type: string }
-        issuedAt: { type: string, format: date-time }
-        courseId: { type: string }
-
-    LicenseStatus:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Topic'
+        meta:
+          $ref: '#/components/schemas/SuccessMeta'
+      required: [success, data, meta]
+    ObjectResponseItem:
       type: object
       properties:
-        learnerId: { type: string }
-        courseId:  { type: string }
-        valid:     { type: boolean }
-        expiresAt: { type: string, format: date-time }
-
-    ReportSummary:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Item'
+        meta:
+          $ref: '#/components/schemas/SuccessMeta'
+      required: [success, data, meta]
+    ObjectResponseItemVariants:
       type: object
       properties:
-        generatedAt: { type: string, format: date-time }
-        learners:    { type: integer }
-        completions: { type: integer }
-        avgScore:    { type: number, format: float }
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemVariant'
+        meta:
+          $ref: '#/components/schemas/SuccessMeta'
+      required: [success, data, meta]
 
-    Error:
-      type: object
-      required: [code, message]
-      properties:
-        code:    { type: string }
-        message: { type: string }
-
-security:
-  - bearerAuth: []
-
-# ────────────────  ROUTES  ──────────────────────────
 paths:
-
-  # COURSES
-  /courses:
+  /api/v1/courses:
     get:
-      summary: List all courses visible to the caller
+      summary: List accessible courses
+      description: Returns courses accessible to the API key's organization.
+      tags: [Courses]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
       responses:
         '200':
-          description: Array of courses
+          description: Successful response
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Course' }
-
-  /courses/{courseId}:
+                $ref: '#/components/schemas/ListResponseCourses'
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '400': { description: Bad Request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Too Many Requests, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/v1/courses/{id}:
     get:
-      summary: Retrieve a single course record
+      summary: Get course details
+      tags: [Courses]
       parameters:
-        - in: path
-          name: courseId
+        - name: id
+          in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Course
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Course' }
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-
-  /courses/{courseId}/modules:
-    get:
-      summary: List modules within a course
-      parameters:
-        - in: path
-          name: courseId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Array of modules
+          description: Successful response
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Module' }
-
-  # MODULES
-  /modules/{moduleId}:
+                $ref: '#/components/schemas/ObjectResponseCourse'
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/v1/courses/{id}/topics:
     get:
-      summary: Retrieve a single module
+      summary: List topics in a course
+      tags: [Topics]
       parameters:
-        - in: path
-          name: moduleId
+        - name: id
+          in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
       responses:
         '200':
-          description: Module
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Module' }
-        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-
-  /modules/{moduleId}/items:
-    get:
-      summary: List items under a module
-      parameters:
-        - in: path
-          name: moduleId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Array of items
+          description: Successful response
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Item' }
-
-  # ITEMS
-  /items/{itemId}:
+                $ref: '#/components/schemas/ListResponseTopics'
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/v1/topics/{id}:
     get:
-      summary: Retrieve item metadata and delivery details
+      summary: Get topic details
+      tags: [Topics]
       parameters:
-        - in: path
-          name: itemId
+        - name: id
+          in: path
           required: true
-          schema: { type: string }
-        - in: query
-          name: format
-          schema: { type: string }
-          description: Optional rendition format (html, pdf, streaming)
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Item
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Item' }
-
-  # MODULE ATTEMPTS (scoring)
-  /modules/{moduleId}/attempts:
-    post:
-      summary: Submit a completed module attempt
-      parameters:
-        - in: path
-          name: moduleId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/ModuleAttemptSubmission' }
-      responses:
-        '202': { description: Accepted – scoring in progress }
-        '400': { description: Invalid payload, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-
-  /moduleAttempts/{attemptId}:
-    get:
-      summary: Retrieve scoring outcome for a module attempt
-      parameters:
-        - in: path
-          name: attemptId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Attempt result
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModuleAttemptResult' }
-        '404': { description: Unknown attempt, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-
-  # PROGRESS / BADGES
-  /learners/{learnerId}/progress:
-    get:
-      summary: Item- and module-level progress for a learner
-      parameters:
-        - in: path
-          name: learnerId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Progress array
+          description: Successful response
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/ProgressEntry' }
-
-  /learners/{learnerId}/badges:
+                $ref: '#/components/schemas/ObjectResponseTopic'
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/v1/topics/{id}/items:
     get:
-      summary: Completion badges earned by a learner
+      summary: List items in a topic
+      tags: [Items]
       parameters:
-        - in: path
-          name: learnerId
+        - name: id
+          in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
       responses:
         '200':
-          description: Badge array
+          description: Successful response
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Badge' }
-
-  # RECOMMENDATIONS
-  /learners/{learnerId}/recommendations:
+                $ref: '#/components/schemas/ListResponseItems'
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/v1/items/{id}:
     get:
-      summary: Personalised course recommendations
+      summary: Get item details
+      tags: [Items]
       parameters:
-        - in: path
-          name: learnerId
+        - name: id
+          in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Recommendation list
+          description: Successful response
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/RecommendationList' }
-
-  # LICENSING
-  /license/validate:
-    post:
-      summary: Validate whether a learner may access a course
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [learnerId, courseId]
-              properties:
-                learnerId: { type: string }
-                courseId:  { type: string }
-      responses:
-        '200':
-          description: License status
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/LicenseStatus' }
-        '403':
-          description: Access denied
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-
-  # USAGE REPORTS
-  /reports/usage:
+              schema:
+                $ref: '#/components/schemas/ObjectResponseItem'
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/v1/items/{id}/variants:
     get:
-      summary: Aggregate usage snapshot for ETL/BI
+      summary: Get item variants (all formats)
+      tags: [Items]
       parameters:
-        - in: query
-          name: since
-          schema: { type: string, format: date-time }
-          description: ISO-8601 timestamp for incremental pulls
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Usage metrics
+          description: Successful response
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ReportSummary' }
+              schema:
+                $ref: '#/components/schemas/ObjectResponseItemVariants'
+        '404': { description: Not Found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Internal Server Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
