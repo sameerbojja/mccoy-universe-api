@@ -28,7 +28,7 @@ components:
       name: sort_by
       in: query
       schema: { type: string }
-      description: Courses: name | Topics: l1_name, l2_name, item_count | Items: fact
+      description: "Courses: name | Topics: l1_name, l2_name, item_count | Items: fact"
     SortOrder:
       name: sort_order
       in: query
