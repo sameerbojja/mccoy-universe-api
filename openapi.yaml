@@ -7,6 +7,7 @@ info:
     Authentication uses API keys in the Authorization header with the scheme 'ApiKey'.
 servers:
   - url: https://quantum-api.mccoy.org/
+    description: Production
 security:
   - ApiKeyAuth: []
 
@@ -44,7 +45,7 @@ components:
         type: string
       description: |
         Field to sort by. Valid values:
-        - Courses: name, created_at, l1, l2, l3
+        - Courses: name, created_at
         - Topics: l1_name, l2_name, item_count, created_at, updated_at
         - Items: fact, created_at, updated_at
     SortOrder:
