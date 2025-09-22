@@ -52,7 +52,7 @@ components:
         error:
           type: object
           properties:
-            code: { type: string, example: INVALID_API_KEY }
+            code: { type: string }
             message: { type: string }
             details: { type: object }
           required: [code, message]
@@ -134,11 +134,6 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/Course' }
-        '400': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '429': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/courses/{id}:
     get:
       summary: Get course
@@ -154,10 +149,6 @@ paths:
                   - type: object
                     properties:
                       data: { $ref: '#/components/schemas/Course' }
-        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/courses/{id}/topics:
     get:
       summary: List topics
@@ -179,10 +170,6 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/Topic' }
-        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/topics/{id}:
     get:
       summary: Get topic
@@ -198,10 +185,6 @@ paths:
                   - type: object
                     properties:
                       data: { $ref: '#/components/schemas/Topic' }
-        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/topics/{id}/items:
     get:
       summary: List items
@@ -223,10 +206,6 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/Item' }
-        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/items/{id}:
     get:
       summary: Get item
@@ -242,10 +221,6 @@ paths:
                   - type: object
                     properties:
                       data: { $ref: '#/components/schemas/Item' }
-        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /api/v1/items/{id}/variants:
     get:
       summary: Get item variants
@@ -264,7 +239,3 @@ paths:
                       data:
                         type: array
                         items: { $ref: '#/components/schemas/ItemVariant' }
-        '404': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '401': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '500': { content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
